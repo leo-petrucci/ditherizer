@@ -32,6 +32,7 @@ export function DitherizerApp() {
    * Toggle between processed and original preview.
    */
   const [showProcessed, setShowProcessed] = useState(true)
+  const [ditherMode, setDitherMode] = useState<'ordered' | 'diffusion' | 'none'>('ordered')
 
   /**
    * Refs store the last committed values for processing.
@@ -42,7 +43,11 @@ export function DitherizerApp() {
   /**
    * Cache of the last processed settings to prevent duplicate work.
    */
-  const lastProcessedRef = useRef<{ colors: number; scale: number } | null>(null)
+  const lastProcessedRef = useRef<{
+    colors: number
+    scale: number
+    mode: 'ordered' | 'diffusion' | 'none'
+  } | null>(null)
 
   /**
    * Processing hook handles decode, dithering, and output caching.
@@ -83,21 +88,22 @@ export function DitherizerApp() {
   }, [outputSize, scale, sourceSize])
 
   /**
-   * Trigger processing only when settings change.
-   */
-  /**
    * Trigger processing only when inputs have changed.
    */
-  const triggerProcessing = (colors: number, nextScale: number) => {
+  const triggerProcessing = (
+    colors: number,
+    nextScale: number,
+    mode: 'ordered' | 'diffusion' | 'none'
+  ) => {
     if (!sourceFile) {
       return
     }
     const last = lastProcessedRef.current
-    if (last && last.colors === colors && last.scale === nextScale) {
+    if (last && last.colors === colors && last.scale === nextScale && last.mode === mode) {
       return
     }
-    lastProcessedRef.current = { colors, scale: nextScale }
-    process({ maxColors: colors, scale: nextScale })
+    lastProcessedRef.current = { colors, scale: nextScale, mode }
+    process({ maxColors: colors, scale: nextScale, ditherMode: mode })
   }
 
   /**
@@ -118,7 +124,7 @@ export function DitherizerApp() {
       URL.revokeObjectURL(sourceUrl)
     }
     setSourceUrl(nextUrl)
-    triggerProcessing(maxColorsRef.current, scaleRef.current)
+    triggerProcessing(maxColorsRef.current, scaleRef.current, ditherMode)
   }
 
   /**
@@ -146,7 +152,7 @@ export function DitherizerApp() {
     const clamped = Math.min(MAX_COLORS, Math.max(MIN_COLORS, Math.round(value)))
     maxColorsRef.current = clamped
     setMaxColors(clamped)
-    triggerProcessing(clamped, scaleRef.current)
+    triggerProcessing(clamped, scaleRef.current, ditherMode)
   }
 
   /**
@@ -156,7 +162,15 @@ export function DitherizerApp() {
     const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, value))
     scaleRef.current = clamped
     setScale(clamped)
-    triggerProcessing(maxColorsRef.current, clamped)
+    triggerProcessing(maxColorsRef.current, clamped, ditherMode)
+  }
+
+  /**
+   * Commit the dither mode selection and trigger reprocessing.
+   */
+  const handleDitherModeChange = (mode: 'ordered' | 'diffusion' | 'none') => {
+    setDitherMode(mode)
+    triggerProcessing(maxColorsRef.current, scaleRef.current, mode)
   }
 
   /**
@@ -203,6 +217,7 @@ export function DitherizerApp() {
                 maxColors={maxColors}
                 scale={scale}
                 showProcessed={showProcessed}
+                ditherMode={ditherMode}
                 disabled={!sourceFile || isProcessing}
                 isProcessing={isProcessing}
                 onMaxColorsChange={handleMaxColorsChange}
@@ -210,6 +225,7 @@ export function DitherizerApp() {
                 onScaleChange={handleScaleChange}
                 onScaleCommit={handleScaleCommit}
                 onTogglePreview={setShowProcessed}
+                onDitherModeChange={handleDitherModeChange}
                 onDownload={handleDownload}
               />
 

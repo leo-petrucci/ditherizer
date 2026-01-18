@@ -8,6 +8,7 @@ type ControlsPanelProps = {
   maxColors: number
   scale: number
   showProcessed: boolean
+  ditherMode: 'ordered' | 'diffusion' | 'none'
   disabled: boolean
   isProcessing: boolean
   onMaxColorsChange: (value: number) => void
@@ -15,6 +16,7 @@ type ControlsPanelProps = {
   onScaleChange: (value: number) => void
   onScaleCommit: (value: number) => void
   onTogglePreview: (showProcessed: boolean) => void
+  onDitherModeChange: (mode: 'ordered' | 'diffusion' | 'none') => void
   onDownload: () => void
 }
 
@@ -25,6 +27,7 @@ export const ControlsPanel = ({
   maxColors,
   scale,
   showProcessed,
+  ditherMode,
   disabled,
   isProcessing,
   onMaxColorsChange,
@@ -32,6 +35,7 @@ export const ControlsPanel = ({
   onScaleChange,
   onScaleCommit,
   onTogglePreview,
+  onDitherModeChange,
   onDownload,
 }: ControlsPanelProps) => {
   return (
@@ -103,6 +107,32 @@ export const ControlsPanel = ({
           onChange={(event) => onScaleChange(Number(event.currentTarget.value))}
           onBlur={(event) => onScaleCommit(Number(event.currentTarget.value))}
         />
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-slate-700">Dither mode</p>
+        <div className="flex rounded-full border border-slate-200 bg-slate-100 p-1">
+          {[
+            { label: 'Pattern (Ordered)', value: 'ordered' },
+            { label: 'Diffusion', value: 'diffusion' },
+            { label: 'None', value: 'none' },
+          ].map((mode) => {
+            const active = ditherMode === mode.value
+            return (
+              <button
+                key={mode.value}
+                type="button"
+                data-testid={`dither-${mode.value}`}
+                onClick={() => onDitherModeChange(mode.value)}
+                className={`flex-1 rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
+                  active ? 'bg-white text-slate-900 shadow' : 'text-slate-500'
+                }`}
+              >
+                {mode.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="space-y-3">

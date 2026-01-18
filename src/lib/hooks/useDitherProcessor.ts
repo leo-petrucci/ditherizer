@@ -7,6 +7,7 @@ type Size = { width: number; height: number }
 type ProcessOptions = {
   maxColors: number
   scale: number
+  ditherMode?: 'ordered' | 'diffusion' | 'none'
 }
 
 type ProcessResult = {
@@ -130,7 +131,6 @@ export const useDitherProcessor = (sourceFile: File | null): ProcessResult => {
       setIsProcessing(true)
       setError(null)
 
-
       try {
         let imageData = sourceImageDataRef.current
         let width = sourceSize?.width ?? 0
@@ -146,14 +146,14 @@ export const useDitherProcessor = (sourceFile: File | null): ProcessResult => {
           width = loaded.width
           height = loaded.height
           sourceImageDataRef.current = imageData
-          setSourceSize({ width, height })
-        }
+        setSourceSize({ width, height })
+      }
 
+      const result = await applyPaletteDitherClient(imageData, {
 
-        const result = await applyPaletteDitherClient(imageData, {
           maxColors: options.maxColors,
           scale: options.scale,
-          dither: true,
+          ditherMode: options.ditherMode,
         })
 
 

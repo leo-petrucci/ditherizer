@@ -177,6 +177,23 @@ describe('DitherizerApp UI', () => {
     })
   })
 
+  it('switches dither mode selection', async () => {
+    renderApp()
+
+    const file = new File([new Uint8Array([1])], 'sample.png', {
+      type: 'image/png',
+    })
+    const input = screen.getByTestId('image-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [file] } })
+
+    const diffusionButton = await screen.findByTestId('dither-diffusion')
+    fireEvent.click(diffusionButton)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('dither-diffusion')).toHaveClass('bg-white')
+    })
+  })
+
   it('enables the download button after processing completes', async () => {
     renderApp()
 
