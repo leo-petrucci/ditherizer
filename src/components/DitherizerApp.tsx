@@ -32,9 +32,32 @@ export function DitherizerApp() {
   const [sourceFile, setSourceFile] = useState<File | null>(null)
   const [sourceUrl, setSourceUrl] = useState<string | null>(null)
   const [outputUrl, setOutputUrl] = useState<string | null>(null)
+
+  /**
+   * Cached ImageData held in state for lifecycle updates.
+   */
+  const [sourceImageData, setSourceImageData] = useState<ImageData | null>(null)
   const outputUrlRef = useRef<string | null>(null)
+
+  /**
+   * Cached ImageData to avoid re-decoding the same file on every change.
+   */
+  const sourceImageDataRef = useRef<ImageData | null>(null)
+
+  /**
+   * Prevent overlapping dithering passes when events fire rapidly.
+   */
   const processingLockRef = useRef(false)
+
+  /**
+   * Remember the last processed palette/scale to skip duplicate work.
+   */
   const lastProcessedRef = useRef<{ colors: number; scale: number } | null>(null)
+
+  /**
+   * Incremented on each file selection to invalidate stale async work.
+   */
+  const loadTokenRef = useRef(0)
 
   /**
    * Source and output dimensions tracked for display.
@@ -94,15 +117,16 @@ export function DitherizerApp() {
   }
 
   /**
-   * Cleanup any blob URLs on unmount or when they change.
+   * Sync refs used inside async processing and clean up blob URLs.
    */
   useEffect(() => {
     outputUrlRef.current = outputUrl
+    sourceImageDataRef.current = sourceImageData
     return () => {
       revokeUrl(sourceUrl)
       revokeUrl(outputUrl)
     }
-  }, [sourceUrl, outputUrl])
+  }, [sourceUrl, outputUrl, sourceImageData])
 
   /**
    * Clear any rendered output when a new file is selected.
@@ -119,6 +143,9 @@ export function DitherizerApp() {
   const handleFileSelect = (file: File | null) => {
     setError(null)
     resetOutput()
+    setSourceImageData(null)
+    sourceImageDataRef.current = null
+    loadTokenRef.current += 1
 
     if (!file) {
       setSourceFile(null)
@@ -144,8 +171,9 @@ export function DitherizerApp() {
 
   /**
    * Decode an uploaded image into ImageData using an offscreen canvas.
+   * Returns null if a newer file was selected while decoding.
    */
-  const loadImageData = async (file: File) => {
+  const loadImageData = async (file: File, token: number) => {
     const bitmap = await createImageBitmap(file)
     const canvas = document.createElement('canvas')
     canvas.width = bitmap.width
@@ -160,12 +188,17 @@ export function DitherizerApp() {
     const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
     bitmap.close()
 
+    if (loadTokenRef.current !== token) {
+      return null
+    }
+
     return { imageData, width: canvas.width, height: canvas.height }
   }
 
   /**
    * Run the client-side dithering pipeline and update preview state.
    * Guards against overlapping renders when sliders emit multiple commits.
+   * Reuses cached ImageData to avoid decoding on every interaction.
    */
   const processImage = useCallback(async (file: File, colors: number, nextScale: number) => {
     if (processingLockRef.current) {
@@ -176,8 +209,23 @@ export function DitherizerApp() {
     setError(null)
 
     try {
-      const { imageData, width, height } = await loadImageData(file)
-      setSourceSize({ width, height })
+      let imageData = sourceImageDataRef.current
+      let width = sourceSize?.width ?? 0
+      let height = sourceSize?.height ?? 0
+
+      if (!imageData) {
+        const token = loadTokenRef.current
+        const loaded = await loadImageData(file, token)
+        if (!loaded) {
+          return
+        }
+        imageData = loaded.imageData
+        width = loaded.width
+        height = loaded.height
+        sourceImageDataRef.current = imageData
+        setSourceImageData(imageData)
+        setSourceSize({ width, height })
+      }
 
       const result = await applyPaletteDitherClient(imageData, {
         maxColors: colors,
@@ -197,10 +245,11 @@ export function DitherizerApp() {
       processingLockRef.current = false
       setIsProcessing(false)
     }
-  }, [])
+  }, [sourceSize])
 
   /**
    * Trigger processing with the current or provided settings.
+   * Skips duplicate work if inputs have not changed.
    */
   const triggerProcessing = useCallback(
     (nextColors = maxColorsRef.current, nextScale = scaleRef.current) => {
