@@ -95,8 +95,8 @@ describe('DitherizerApp UI', () => {
     renderApp()
 
     expect(screen.getByTestId('image-dropzone')).toBeInTheDocument()
-    expect(screen.getByTestId('colors-slider')).toBeDisabled()
-    expect(screen.getByTestId('scale-slider')).toBeDisabled()
+    expect(screen.getByTestId('colors-slider')).toHaveAttribute('data-disabled')
+    expect(screen.getByTestId('scale-slider')).toHaveAttribute('data-disabled')
     expect(screen.getByTestId('download-button')).toBeDisabled()
   })
 
@@ -110,8 +110,8 @@ describe('DitherizerApp UI', () => {
     fireEvent.change(input, { target: { files: [file] } })
 
     await waitFor(() => {
-      expect(screen.getByTestId('colors-slider')).not.toBeDisabled()
-      expect(screen.getByTestId('scale-slider')).not.toBeDisabled()
+      expect(screen.getByTestId('colors-slider')).not.toHaveAttribute('data-disabled')
+      expect(screen.getByTestId('scale-slider')).not.toHaveAttribute('data-disabled')
     })
 
     await waitFor(() =>

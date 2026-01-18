@@ -1,98 +1,78 @@
-import { Download, ImageIcon, Loader2, Sparkles } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent, DragEvent } from 'react'
+import { Sparkles } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
 
-import { applyPaletteDitherClient } from '@/lib/image/ditherClient'
+import { ControlsPanel } from '@/components/ControlsPanel'
+import { PreviewPanel } from '@/components/PreviewPanel'
+import { UploadCard } from '@/components/UploadCard'
+import { useDitherProcessor } from '@/lib/hooks/useDitherProcessor'
 
 const MAX_COLORS = 256
 const MIN_COLORS = 2
 const DEFAULT_COLORS = 256
 const MIN_SCALE = 0.25
 const MAX_SCALE = 4
-const SCALE_STEP = 0.05
-
-/**
- * Format the scale value for display in the UI.
- */
-const formatScaleLabel = (value: number) => `${value.toFixed(2)}x`
-
-/**
- * Clamp a numeric value between min and max.
- */
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value))
 
 /**
  * Main Ditherizer Studio page.
  */
 export function DitherizerApp() {
   /**
-   * Uploaded file and associated preview URLs.
+   * Uploaded file and preview URL for the original image.
    */
   const [sourceFile, setSourceFile] = useState<File | null>(null)
   const [sourceUrl, setSourceUrl] = useState<string | null>(null)
-  const [outputUrl, setOutputUrl] = useState<string | null>(null)
 
   /**
-   * Cached ImageData held in state for lifecycle updates.
-   */
-  const [sourceImageData, setSourceImageData] = useState<ImageData | null>(null)
-  const outputUrlRef = useRef<string | null>(null)
-
-  /**
-   * Cached ImageData to avoid re-decoding the same file on every change.
-   */
-  const sourceImageDataRef = useRef<ImageData | null>(null)
-
-  /**
-   * Prevent overlapping dithering passes when events fire rapidly.
-   */
-  const processingLockRef = useRef(false)
-
-  /**
-   * Remember the last processed palette/scale to skip duplicate work.
-   */
-  const lastProcessedRef = useRef<{ colors: number; scale: number } | null>(null)
-
-  /**
-   * Incremented on each file selection to invalidate stale async work.
-   */
-  const loadTokenRef = useRef(0)
-
-  /**
-   * Source and output dimensions tracked for display.
-   */
-  const [outputSize, setOutputSize] = useState<{ width: number; height: number } | null>(null)
-  const [sourceSize, setSourceSize] = useState<{ width: number; height: number } | null>(null)
-
-  /**
-   * Control values for palette size, scale, and preview state.
+   * User-controlled palette size and scale values.
    */
   const [maxColors, setMaxColors] = useState(DEFAULT_COLORS)
   const [scale, setScale] = useState(1)
+
+  /**
+   * Toggle between processed and original preview.
+   */
   const [showProcessed, setShowProcessed] = useState(true)
 
   /**
-   * Processing state and any errors returned from the pipeline.
-   */
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  /**
-   * References for committed values used when processing on blur/commit.
+   * Refs store the last committed values for processing.
    */
   const maxColorsRef = useRef(maxColors)
   const scaleRef = useRef(scale)
 
   /**
-   * Preformatted label for the current scale.
+   * Cache of the last processed settings to prevent duplicate work.
    */
-  const currentScaleLabel = useMemo(() => formatScaleLabel(scale), [scale])
+  const lastProcessedRef = useRef<{ colors: number; scale: number } | null>(null)
 
   /**
-   * Output size derived from the scale when a processed image isn't available yet.
+   * Processing hook handles decode, dithering, and output caching.
    */
-  const derivedOutputSize = useMemo(() => {
+  const {
+    outputUrl,
+    outputSize,
+    sourceSize,
+    isProcessing,
+    error,
+    process,
+    reset,
+  } = useDitherProcessor(sourceFile)
+
+  /**
+   * Choose which preview URL and label should be visible.
+   */
+  const previewUrl = showProcessed ? outputUrl || sourceUrl : sourceUrl
+  const previewLabel = showProcessed ? 'Processed' : 'Original'
+
+  /**
+   * Use processed output size if available, otherwise estimate from source.
+   */
+  /**
+   * Use processed output size if available, otherwise estimate from source.
+   */
+  const displayOutputSize = useMemo(() => {
+    if (outputSize) {
+      return outputSize
+    }
     if (!sourceSize) {
       return null
     }
@@ -100,184 +80,53 @@ export function DitherizerApp() {
       width: Math.max(1, Math.round(sourceSize.width * scale)),
       height: Math.max(1, Math.round(sourceSize.height * scale)),
     }
-  }, [sourceSize, scale])
+  }, [outputSize, scale, sourceSize])
 
   /**
-   * Prefer the measured output size once a render completes.
+   * Trigger processing only when settings change.
    */
-  const displayOutputSize = outputSize ?? derivedOutputSize
-
   /**
-   * Helper to clean up object URLs and avoid leaking memory.
+   * Trigger processing only when inputs have changed.
    */
-  const revokeUrl = (url: string | null) => {
-    if (url) {
-      URL.revokeObjectURL(url)
-    }
-  }
-
-  /**
-   * Sync refs used inside async processing and clean up blob URLs.
-   */
-  useEffect(() => {
-    outputUrlRef.current = outputUrl
-    sourceImageDataRef.current = sourceImageData
-    return () => {
-      revokeUrl(sourceUrl)
-      revokeUrl(outputUrl)
-    }
-  }, [sourceUrl, outputUrl, sourceImageData])
-
-  /**
-   * Clear any rendered output when a new file is selected.
-   */
-  const resetOutput = () => {
-    revokeUrl(outputUrl)
-    setOutputUrl(null)
-    setOutputSize(null)
-  }
-
-  /**
-   * Update state when a file is selected via input or drag-and-drop.
-   */
-  const handleFileSelect = (file: File | null) => {
-    setError(null)
-    resetOutput()
-    setSourceImageData(null)
-    sourceImageDataRef.current = null
-    loadTokenRef.current += 1
-
-    if (!file) {
-      setSourceFile(null)
-      revokeUrl(sourceUrl)
-      setSourceUrl(null)
-      setSourceSize(null)
-      return
-    }
-
-    setSourceFile(file)
-    const nextUrl = URL.createObjectURL(file)
-    revokeUrl(sourceUrl)
-    setSourceUrl(nextUrl)
-  }
-
-  /**
-   * Handle file input changes from the hidden upload element.
-   */
-  const handleUploadChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null
-    handleFileSelect(file)
-  }
-
-  /**
-   * Decode an uploaded image into ImageData using an offscreen canvas.
-   * Returns null if a newer file was selected while decoding.
-   */
-  const loadImageData = async (file: File, token: number) => {
-    const bitmap = await createImageBitmap(file)
-    const canvas = document.createElement('canvas')
-    canvas.width = bitmap.width
-    canvas.height = bitmap.height
-
-    const context = canvas.getContext('2d')
-    if (!context) {
-      throw new Error('Canvas context unavailable')
-    }
-
-    context.drawImage(bitmap, 0, 0)
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-    bitmap.close()
-
-    if (loadTokenRef.current !== token) {
-      return null
-    }
-
-    return { imageData, width: canvas.width, height: canvas.height }
-  }
-
-  /**
-   * Run the client-side dithering pipeline and update preview state.
-   * Guards against overlapping renders when sliders emit multiple commits.
-   * Reuses cached ImageData to avoid decoding on every interaction.
-   */
-  const processImage = useCallback(async (file: File, colors: number, nextScale: number) => {
-    if (processingLockRef.current) {
-      return
-    }
-    processingLockRef.current = true
-    setIsProcessing(true)
-    setError(null)
-
-    try {
-      let imageData = sourceImageDataRef.current
-      let width = sourceSize?.width ?? 0
-      let height = sourceSize?.height ?? 0
-
-      if (!imageData) {
-        const token = loadTokenRef.current
-        const loaded = await loadImageData(file, token)
-        if (!loaded) {
-          return
-        }
-        imageData = loaded.imageData
-        width = loaded.width
-        height = loaded.height
-        sourceImageDataRef.current = imageData
-        setSourceImageData(imageData)
-        setSourceSize({ width, height })
-      }
-
-      const result = await applyPaletteDitherClient(imageData, {
-        maxColors: colors,
-        scale: nextScale,
-        dither: true,
-      })
-
-      revokeUrl(outputUrlRef.current)
-      const nextUrl = URL.createObjectURL(result.blob)
-      outputUrlRef.current = nextUrl
-      setOutputUrl(nextUrl)
-      setOutputSize({ width: result.width, height: result.height })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to process image.'
-      setError(message)
-    } finally {
-      processingLockRef.current = false
-      setIsProcessing(false)
-    }
-  }, [sourceSize])
-
-  /**
-   * Trigger processing with the current or provided settings.
-   * Skips duplicate work if inputs have not changed.
-   */
-  const triggerProcessing = useCallback(
-    (nextColors = maxColorsRef.current, nextScale = scaleRef.current) => {
-      if (!sourceFile) {
-        return
-      }
-      const last = lastProcessedRef.current
-      if (last && last.colors === nextColors && last.scale === nextScale) {
-        return
-      }
-      lastProcessedRef.current = { colors: nextColors, scale: nextScale }
-      processImage(sourceFile, nextColors, nextScale)
-    },
-    [sourceFile, processImage]
-  )
-
-  useEffect(() => {
+  const triggerProcessing = (colors: number, nextScale: number) => {
     if (!sourceFile) {
       return
     }
+    const last = lastProcessedRef.current
+    if (last && last.colors === colors && last.scale === nextScale) {
+      return
+    }
+    console.log('triggerProcessing', { colors, nextScale })
+    lastProcessedRef.current = { colors, scale: nextScale }
+    process({ maxColors: colors, scale: nextScale })
+  }
+
+  /**
+   * Reset processing state and cache when a new file is selected.
+   */
+  const handleFileSelect = (file: File | null) => {
+    reset()
+    lastProcessedRef.current = null
+    setSourceFile(file)
+
+    if (!file) {
+      setSourceUrl(null)
+      return
+    }
+
+    const nextUrl = URL.createObjectURL(file)
+    if (sourceUrl) {
+      URL.revokeObjectURL(sourceUrl)
+    }
+    setSourceUrl(nextUrl)
     triggerProcessing(maxColorsRef.current, scaleRef.current)
-  }, [sourceFile, triggerProcessing])
+  }
 
   /**
    * Update palette size while the slider is moving.
    */
-  const handleColorsChange = (value: number) => {
-    const clamped = clamp(Math.round(value), MIN_COLORS, MAX_COLORS)
+  const handleMaxColorsChange = (value: number) => {
+    const clamped = Math.min(MAX_COLORS, Math.max(MIN_COLORS, Math.round(value)))
     maxColorsRef.current = clamped
     setMaxColors(clamped)
   }
@@ -286,47 +135,35 @@ export function DitherizerApp() {
    * Update scale while the slider is moving.
    */
   const handleScaleChange = (value: number) => {
-    const clamped = clamp(value, MIN_SCALE, MAX_SCALE)
+    const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, value))
     scaleRef.current = clamped
     setScale(clamped)
+    console.log('handleScaleChange', clamped)
   }
 
   /**
-   * Commit palette size changes when the slider is released or input blurred.
+   * Commit palette size and trigger processing after release/blur.
    */
-  const handleColorsCommit = (value: number) => {
-    const clamped = clamp(Math.round(value), MIN_COLORS, MAX_COLORS)
+  const handleMaxColorsCommit = (value: number) => {
+    const clamped = Math.min(MAX_COLORS, Math.max(MIN_COLORS, Math.round(value)))
     maxColorsRef.current = clamped
     setMaxColors(clamped)
     triggerProcessing(clamped, scaleRef.current)
   }
 
   /**
-   * Commit scale changes when the slider is released or input blurred.
+   * Commit scale and trigger processing after release/blur.
    */
   const handleScaleCommit = (value: number) => {
-    const clamped = clamp(value, MIN_SCALE, MAX_SCALE)
+    const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, value))
     scaleRef.current = clamped
     setScale(clamped)
+    console.log('handleScaleCommit', clamped)
     triggerProcessing(maxColorsRef.current, clamped)
   }
 
   /**
-   * Commit palette size changes from the number input.
-   */
-  const handleColorBlur = (event: ChangeEvent<HTMLInputElement>) => {
-    handleColorsCommit(Number(event.currentTarget.value))
-  }
-
-  /**
-   * Commit scale changes from the number input.
-   */
-  const handleScaleBlur = (event: ChangeEvent<HTMLInputElement>) => {
-    handleScaleCommit(Number(event.currentTarget.value))
-  }
-
-  /**
-   * Trigger a download of the processed PNG.
+   * Download the currently processed PNG.
    */
   const handleDownload = () => {
     if (!outputUrl) {
@@ -338,33 +175,6 @@ export function DitherizerApp() {
     link.download = 'dithered.png'
     link.click()
   }
-
-  /**
-   * Allow drag-and-drop uploads on the dropzone.
-   */
-  const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
-    event.preventDefault()
-    if (event.dataTransfer.files.length === 0) {
-      return
-    }
-    const file = event.dataTransfer.files[0]
-    if (file.type.startsWith('image/')) {
-      handleFileSelect(file)
-    }
-  }
-
-  /**
-   * Prevent the browser from opening the file directly on drag-over.
-   */
-  const handleDragOver = (event: DragEvent<HTMLLabelElement>) => {
-    event.preventDefault()
-  }
-
-  /**
-   * Resolve which preview image to show based on toggle state.
-   */
-  const previewUrl = showProcessed ? outputUrl || sourceUrl : sourceUrl
-  const previewLabel = showProcessed ? 'Processed' : 'Original'
 
   return (
     <div className="min-h-screen bg-[#f6f1e7] text-slate-900" data-testid="ditherizer-root">
@@ -391,202 +201,42 @@ export function DitherizerApp() {
           </header>
 
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-            <section className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-[#f7c07b]/20 backdrop-blur">
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-xl">Controls</h2>
-                {isProcessing && (
-                  <span className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-500">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Processing
-                  </span>
-                )}
+            <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-[#f7c07b]/20 backdrop-blur">
+              <ControlsPanel
+                maxColors={maxColors}
+                scale={scale}
+                showProcessed={showProcessed}
+                disabled={!sourceFile || isProcessing}
+                isProcessing={isProcessing}
+                onMaxColorsChange={handleMaxColorsChange}
+                onMaxColorsCommit={handleMaxColorsCommit}
+                onScaleChange={handleScaleChange}
+                onScaleCommit={handleScaleCommit}
+                onTogglePreview={setShowProcessed}
+                onDownload={handleDownload}
+              />
+
+              <div className="mt-6">
+                <UploadCard
+                  sourceFile={sourceFile}
+                  sourceSize={sourceSize}
+                  onFileSelected={handleFileSelect}
+                />
               </div>
 
-              <div className="mt-5 space-y-6">
-                <div className="space-y-3">
-                  <label
-                    htmlFor="image-upload"
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    data-testid="image-dropzone"
-                    className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500 transition hover:border-slate-400"
-                  >
-                    <ImageIcon className="h-7 w-7" />
-                    <div>
-                      <p className="font-medium text-slate-700">Drop an image here</p>
-                      <p className="text-xs text-slate-500">or click to browse</p>
-                    </div>
-                  </label>
-                  <input
-                    id="image-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    data-testid="image-input"
-                    onChange={handleUploadChange}
-                  />
-                  {sourceFile && (
-                    <div
-                      className="rounded-2xl bg-slate-100 px-4 py-3 text-xs text-slate-600"
-                      data-testid="file-info"
-                    >
-                      <p className="font-medium text-slate-700">{sourceFile.name}</p>
-                      {sourceSize && (
-                        <p>
-                          Original: {sourceSize.width} x {sourceSize.height}px
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
+              {error && (
+                <p className="mt-6 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">
+                  {error}
+                </p>
+              )}
+            </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-slate-700">Palette size</p>
-                    <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
-                      {maxColors} colors
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={MIN_COLORS}
-                    max={MAX_COLORS}
-                    step={1}
-                    value={maxColors}
-                    data-testid="colors-slider"
-                    className="w-full accent-slate-900"
-                    disabled={!sourceFile}
-                    onChange={(event) => handleColorsChange(Number(event.currentTarget.value))}
-                    onPointerUp={(event) => handleColorsCommit(Number(event.currentTarget.value))}
-                    onKeyUp={(event) => handleColorsCommit(Number(event.currentTarget.value))}
-                  />
-                  <input
-                    type="number"
-                    min={MIN_COLORS}
-                    max={MAX_COLORS}
-                    value={maxColors}
-                    data-testid="colors-input"
-                    disabled={!sourceFile}
-                    onChange={(event) => handleColorsChange(Number(event.currentTarget.value))}
-                    onBlur={handleColorBlur}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-slate-700">Scale output</p>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow">
-                      {currentScaleLabel}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={MIN_SCALE}
-                    max={MAX_SCALE}
-                    step={SCALE_STEP}
-                    value={scale}
-                    data-testid="scale-slider"
-                    className="w-full accent-slate-900"
-                    disabled={!sourceFile}
-                    onChange={(event) => handleScaleChange(Number(event.currentTarget.value))}
-                    onPointerUp={(event) => handleScaleCommit(Number(event.currentTarget.value))}
-                    onKeyUp={(event) => handleScaleCommit(Number(event.currentTarget.value))}
-                  />
-                  <input
-                    type="number"
-                    min={MIN_SCALE}
-                    max={MAX_SCALE}
-                    step={SCALE_STEP}
-                    value={scale}
-                    data-testid="scale-input"
-                    disabled={!sourceFile}
-                    onChange={(event) => handleScaleChange(Number(event.currentTarget.value))}
-                    onBlur={handleScaleBlur}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-slate-700">Preview mode</p>
-                  <div className="flex rounded-full border border-slate-200 bg-slate-100 p-1">
-                    {['Original', 'Processed'].map((label) => {
-                      const active = (label === 'Processed') === showProcessed
-                      return (
-                        <button
-                          key={label}
-                          type="button"
-                          data-testid={label === 'Processed' ? 'toggle-processed' : 'toggle-original'}
-                          onClick={() => setShowProcessed(label === 'Processed')}
-                          className={`flex-1 rounded-full px-3 py-2 text-xs font-semibold transition ${
-                            active ? 'bg-white text-slate-900 shadow' : 'text-slate-500'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleDownload}
-                  disabled={!outputUrl}
-                  data-testid="download-button"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-                >
-                  <Download className="h-4 w-4" />
-                  Download PNG
-                </button>
-
-                {error && (
-                  <p className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-600">{error}</p>
-                )}
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-lg shadow-[#7bd4c7]/20 backdrop-blur">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Preview</p>
-                  <h2 className="font-display text-2xl" data-testid="preview-label">
-                    {previewLabel}
-                  </h2>
-                </div>
-                <div className="text-right text-xs text-slate-500">
-                  {displayOutputSize ? (
-                    <p data-testid="output-size">
-                      Output: {displayOutputSize.width} x {displayOutputSize.height}px
-                    </p>
-                  ) : (
-                    <p data-testid="output-size">Output: --</p>
-                  )}
-                  <p data-testid="palette-label">Palette: {maxColors} colors</p>
-                </div>
-              </div>
-
-              <div
-                className="preview-grid mt-6 flex min-h-[380px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50"
-                data-testid="preview-container"
-              >
-                {previewUrl ? (
-                  <img
-                    src={previewUrl}
-                    alt="Dithered preview"
-                    data-testid="preview-image"
-                    className="max-h-[420px] w-auto rounded-xl border border-white shadow-lg"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-3 text-center text-slate-400">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow">
-                      <ImageIcon className="h-7 w-7" />
-                    </div>
-                    <p className="text-sm">Upload an image to begin previewing.</p>
-                  </div>
-                )}
-              </div>
-            </section>
+            <PreviewPanel
+              previewUrl={previewUrl}
+              previewLabel={previewLabel}
+              outputSize={displayOutputSize}
+              maxColors={maxColors}
+            />
           </div>
         </div>
       </div>
