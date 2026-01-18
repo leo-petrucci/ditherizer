@@ -148,7 +148,7 @@ export const applyPaletteDitherClient = async (
   const scale = clamp(options.scale ?? 1, 0.1, 1)
   const maxColors = clamp(Math.round(options.maxColors), 2, 256)
   const ditherMode = options.ditherMode ?? 'ordered'
-  const colorReduction = options.colorReduction ?? 'selective'
+  const colorReduction = options.colorReduction ?? 'perceptual'
 
   const reductionConfig = resolveColorReduction(colorReduction)
   const colorDistanceFormula =

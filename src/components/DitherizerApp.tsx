@@ -35,7 +35,7 @@ export function DitherizerApp() {
   const [ditherMode, setDitherMode] = useState<'ordered' | 'diffusion' | 'none'>('ordered')
   const [colorReduction, setColorReduction] = useState<
     'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
-  >('selective')
+  >('perceptual')
 
   /**
    * Refs store the last committed values for processing.
