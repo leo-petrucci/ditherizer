@@ -1,12 +1,19 @@
 import { applyPaletteSync, buildPaletteSync, utils } from 'image-q'
-import type { ColorDistanceFormula, ImageQuantization } from 'image-q'
+import type { ColorDistanceFormula, ImageQuantization, PaletteQuantization } from 'image-q'
 
 export type DitherMode = 'ordered' | 'diffusion' | 'none'
+export type ColorReductionMode =
+  | 'perceptual'
+  | 'perceptual-plus'
+  | 'selective'
+  | 'adaptive'
+  | 'restrictive'
 
 export interface DitherClientOptions {
   maxColors: number
   scale?: number
   ditherMode?: DitherMode
+  colorReduction?: ColorReductionMode
   colorDistanceFormula?: ColorDistanceFormula
 }
 
@@ -54,6 +61,33 @@ const orderedDither = (
   }
 
   return output
+}
+
+const resolveColorReduction = (mode: ColorReductionMode) => {
+  switch (mode) {
+    case 'perceptual-plus':
+      return {
+        paletteQuantization: 'neuquant-float' as PaletteQuantization,
+      }
+    case 'perceptual':
+      return {
+        paletteQuantization: 'wuquant' as PaletteQuantization,
+        colorDistanceFormula: 'ciede2000' as ColorDistanceFormula,
+      }
+    case 'selective':
+      return {
+        paletteQuantization: 'neuquant' as PaletteQuantization,
+      }
+    case 'restrictive':
+      return {
+        paletteQuantization: 'rgbquant' as PaletteQuantization,
+      }
+    case 'adaptive':
+    default:
+      return {
+        paletteQuantization: 'wuquant' as PaletteQuantization,
+      }
+  }
 }
 
 /**
@@ -113,8 +147,12 @@ export const applyPaletteDitherClient = async (
 ): Promise<DitherClientResult> => {
   const scale = clamp(options.scale ?? 1, 0.1, 1)
   const maxColors = clamp(Math.round(options.maxColors), 2, 256)
-  const colorDistanceFormula = options.colorDistanceFormula ?? DEFAULT_DISTANCE
   const ditherMode = options.ditherMode ?? 'ordered'
+  const colorReduction = options.colorReduction ?? 'selective'
+
+  const reductionConfig = resolveColorReduction(colorReduction)
+  const colorDistanceFormula =
+    options.colorDistanceFormula ?? reductionConfig.colorDistanceFormula ?? DEFAULT_DISTANCE
 
   const { imageData: resized, width, height } = resizeImageData(imageData, scale)
 
@@ -124,7 +162,7 @@ export const applyPaletteDitherClient = async (
 
   const palette = buildPaletteSync([pointContainer], {
     colors: maxColors,
-    paletteQuantization: 'wuquant',
+    paletteQuantization: reductionConfig.paletteQuantization,
     colorDistanceFormula,
   })
 

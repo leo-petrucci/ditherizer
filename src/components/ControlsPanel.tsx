@@ -9,6 +9,7 @@ type ControlsPanelProps = {
   scale: number
   showProcessed: boolean
   ditherMode: 'ordered' | 'diffusion' | 'none'
+  colorReduction: 'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
   disabled: boolean
   isProcessing: boolean
   onMaxColorsChange: (value: number) => void
@@ -17,6 +18,9 @@ type ControlsPanelProps = {
   onScaleCommit: (value: number) => void
   onTogglePreview: (showProcessed: boolean) => void
   onDitherModeChange: (mode: 'ordered' | 'diffusion' | 'none') => void
+  onColorReductionChange: (
+    mode: 'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
+  ) => void
   onDownload: () => void
 }
 
@@ -28,6 +32,7 @@ export const ControlsPanel = ({
   scale,
   showProcessed,
   ditherMode,
+  colorReduction,
   disabled,
   isProcessing,
   onMaxColorsChange,
@@ -36,6 +41,7 @@ export const ControlsPanel = ({
   onScaleCommit,
   onTogglePreview,
   onDitherModeChange,
+  onColorReductionChange,
   onDownload,
 }: ControlsPanelProps) => {
   return (
@@ -110,8 +116,36 @@ export const ControlsPanel = ({
       </div>
 
       <div className="space-y-3">
+        <p className="text-sm font-medium text-slate-700">Color reduction</p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: 'Perceptual', value: 'perceptual' },
+            { label: 'Perceptual+', value: 'perceptual-plus' },
+            { label: 'Selective', value: 'selective' },
+            { label: 'Adaptive', value: 'adaptive' },
+            { label: 'Restrictive', value: 'restrictive' },
+          ].map((mode) => {
+            const active = colorReduction === mode.value
+            return (
+              <button
+                key={mode.value}
+                type="button"
+                data-testid={`reduction-${mode.value}`}
+                onClick={() => onColorReductionChange(mode.value)}
+                className={`rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
+                  active ? 'bg-slate-900 text-white shadow' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {mode.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-3">
         <p className="text-sm font-medium text-slate-700">Dither mode</p>
-        <div className="flex rounded-full border border-slate-200 bg-slate-100 p-1">
+        <div className="flex flex-wrap gap-2">
           {[
             { label: 'Pattern (Ordered)', value: 'ordered' },
             { label: 'Diffusion', value: 'diffusion' },
@@ -124,8 +158,8 @@ export const ControlsPanel = ({
                 type="button"
                 data-testid={`dither-${mode.value}`}
                 onClick={() => onDitherModeChange(mode.value)}
-                className={`flex-1 rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
-                  active ? 'bg-white text-slate-900 shadow' : 'text-slate-500'
+                className={`rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
+                  active ? 'bg-slate-900 text-white shadow' : 'bg-slate-100 text-slate-500'
                 }`}
               >
                 {mode.label}

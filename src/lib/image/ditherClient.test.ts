@@ -101,6 +101,7 @@ describe('applyPaletteDitherClient', () => {
       maxColors: 4,
       scale: 0.5,
       ditherMode: 'ordered',
+      colorReduction: 'selective',
     })
 
     expect(result.width).toBe(2)
@@ -115,6 +116,7 @@ describe('applyPaletteDitherClient', () => {
       maxColors: 999,
       scale: 25,
       ditherMode: 'ordered',
+      colorReduction: 'selective',
     })
 
     expect(result.width).toBe(4)
@@ -128,6 +130,7 @@ describe('applyPaletteDitherClient', () => {
       maxColors: 4,
       scale: 1,
       ditherMode: 'ordered',
+      colorReduction: 'selective',
     })
 
     expect(lastImageData).not.toBeNull()
@@ -136,7 +139,7 @@ describe('applyPaletteDitherClient', () => {
     }
 
     expect(hashPixels(lastImageData.data as any)).toBe(
-      '380b578b696a9b7a96d966af63168dc009226268d6509bcb9e1fed23b2e56784'
+      'b660ff8f782aa12962f7cea3ecfc7585da74439f3f226606afdff8a0a58ab07a'
     )
   })
 
@@ -162,6 +165,8 @@ describe('applyPaletteDitherClient', () => {
         maxColors: 4,
         scale: 1,
         ditherMode: 'ordered',
+      colorReduction: 'perceptual-plus',
+
       })
     ).rejects.toThrow('Canvas context unavailable')
   })

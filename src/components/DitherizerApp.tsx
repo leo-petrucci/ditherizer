@@ -33,6 +33,9 @@ export function DitherizerApp() {
    */
   const [showProcessed, setShowProcessed] = useState(true)
   const [ditherMode, setDitherMode] = useState<'ordered' | 'diffusion' | 'none'>('ordered')
+  const [colorReduction, setColorReduction] = useState<
+    'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
+  >('selective')
 
   /**
    * Refs store the last committed values for processing.
@@ -47,6 +50,7 @@ export function DitherizerApp() {
     colors: number
     scale: number
     mode: 'ordered' | 'diffusion' | 'none'
+    colorReduction: 'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
   } | null>(null)
 
   /**
@@ -71,9 +75,6 @@ export function DitherizerApp() {
   /**
    * Use processed output size if available, otherwise estimate from source.
    */
-  /**
-   * Use processed output size if available, otherwise estimate from source.
-   */
   const displayOutputSize = useMemo(() => {
     if (outputSize) {
       return outputSize
@@ -93,17 +94,29 @@ export function DitherizerApp() {
   const triggerProcessing = (
     colors: number,
     nextScale: number,
-    mode: 'ordered' | 'diffusion' | 'none'
+    mode: 'ordered' | 'diffusion' | 'none',
+    reduction: 'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
   ) => {
     if (!sourceFile) {
       return
     }
     const last = lastProcessedRef.current
-    if (last && last.colors === colors && last.scale === nextScale && last.mode === mode) {
+    if (
+      last &&
+      last.colors === colors &&
+      last.scale === nextScale &&
+      last.mode === mode &&
+      last.colorReduction === reduction
+    ) {
       return
     }
-    lastProcessedRef.current = { colors, scale: nextScale, mode }
-    process({ maxColors: colors, scale: nextScale, ditherMode: mode })
+    lastProcessedRef.current = { colors, scale: nextScale, mode, colorReduction: reduction }
+    process({
+      maxColors: colors,
+      scale: nextScale,
+      ditherMode: mode,
+      colorReduction: reduction,
+    })
   }
 
   /**
@@ -124,7 +137,7 @@ export function DitherizerApp() {
       URL.revokeObjectURL(sourceUrl)
     }
     setSourceUrl(nextUrl)
-    triggerProcessing(maxColorsRef.current, scaleRef.current, ditherMode)
+    triggerProcessing(maxColorsRef.current, scaleRef.current, ditherMode, colorReduction)
   }
 
   /**
@@ -152,7 +165,7 @@ export function DitherizerApp() {
     const clamped = Math.min(MAX_COLORS, Math.max(MIN_COLORS, Math.round(value)))
     maxColorsRef.current = clamped
     setMaxColors(clamped)
-    triggerProcessing(clamped, scaleRef.current, ditherMode)
+    triggerProcessing(clamped, scaleRef.current, ditherMode, colorReduction)
   }
 
   /**
@@ -162,7 +175,7 @@ export function DitherizerApp() {
     const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, value))
     scaleRef.current = clamped
     setScale(clamped)
-    triggerProcessing(maxColorsRef.current, clamped, ditherMode)
+    triggerProcessing(maxColorsRef.current, clamped, ditherMode, colorReduction)
   }
 
   /**
@@ -170,7 +183,17 @@ export function DitherizerApp() {
    */
   const handleDitherModeChange = (mode: 'ordered' | 'diffusion' | 'none') => {
     setDitherMode(mode)
-    triggerProcessing(maxColorsRef.current, scaleRef.current, mode)
+    triggerProcessing(maxColorsRef.current, scaleRef.current, mode, colorReduction)
+  }
+
+  /**
+   * Commit color reduction mode and trigger reprocessing.
+   */
+  const handleColorReductionChange = (
+    mode: 'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
+  ) => {
+    setColorReduction(mode)
+    triggerProcessing(maxColorsRef.current, scaleRef.current, ditherMode, mode)
   }
 
   /**
@@ -218,6 +241,7 @@ export function DitherizerApp() {
                 scale={scale}
                 showProcessed={showProcessed}
                 ditherMode={ditherMode}
+                colorReduction={colorReduction}
                 disabled={!sourceFile || isProcessing}
                 isProcessing={isProcessing}
                 onMaxColorsChange={handleMaxColorsChange}
@@ -226,6 +250,7 @@ export function DitherizerApp() {
                 onScaleCommit={handleScaleCommit}
                 onTogglePreview={setShowProcessed}
                 onDitherModeChange={handleDitherModeChange}
+                onColorReductionChange={handleColorReductionChange}
                 onDownload={handleDownload}
               />
 

@@ -8,6 +8,12 @@ type ProcessOptions = {
   maxColors: number
   scale: number
   ditherMode?: 'ordered' | 'diffusion' | 'none'
+  colorReduction?:
+    | 'perceptual'
+    | 'perceptual-plus'
+    | 'selective'
+    | 'adaptive'
+    | 'restrictive'
 }
 
 type ProcessResult = {
@@ -149,12 +155,13 @@ export const useDitherProcessor = (sourceFile: File | null): ProcessResult => {
         setSourceSize({ width, height })
       }
 
-      const result = await applyPaletteDitherClient(imageData, {
-
+        const result = await applyPaletteDitherClient(imageData, {
           maxColors: options.maxColors,
           scale: options.scale,
           ditherMode: options.ditherMode,
+          colorReduction: options.colorReduction,
         })
+
 
 
         revokeUrl(outputUrlRef.current)

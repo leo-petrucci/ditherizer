@@ -190,7 +190,24 @@ describe('DitherizerApp UI', () => {
     fireEvent.click(diffusionButton)
 
     await waitFor(() => {
-      expect(screen.getByTestId('dither-diffusion')).toHaveClass('bg-white')
+      expect(screen.getByTestId('dither-diffusion')).toHaveClass('bg-slate-900')
+    })
+  })
+
+  it('switches color reduction selection', async () => {
+    renderApp()
+
+    const file = new File([new Uint8ClampedArray([1])], 'sample.png', {
+      type: 'image/png',
+    })
+    const input = screen.getByTestId('image-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [file] } })
+
+    const adaptiveButton = await screen.findByTestId('reduction-perceptual-plus')
+    fireEvent.click(adaptiveButton)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('reduction-perceptual-plus')).toHaveClass('bg-slate-900')
     })
   })
 
