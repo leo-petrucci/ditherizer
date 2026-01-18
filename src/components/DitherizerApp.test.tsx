@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-// @vitest-environment jsdom
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { DitherizerApp } from '@/components/DitherizerApp'
@@ -20,10 +19,11 @@ const createCanvasStub = () => {
     }),
     width: 2,
     height: 2,
+    _context: context,
   }
 }
 
-describe('index route UI', () => {
+describe('DitherizerApp UI', () => {
   const renderApp = () => render(<DitherizerApp />)
 
   beforeEach(() => {
@@ -40,6 +40,55 @@ describe('index route UI', () => {
       }
       return originalCreateElement.call(this, tagName, options)
     })
+
+    if (!globalThis.ImageData) {
+      const polyfill = class ImageDataPolyfill {
+        data: Uint8ClampedArray
+        width: number
+        height: number
+
+        constructor(data: Uint8ClampedArray, width: number, height: number) {
+          this.data = data
+          this.width = width
+          this.height = height
+        }
+      }
+      Object.defineProperty(globalThis, 'ImageData', {
+        value: polyfill,
+        configurable: true,
+        writable: true,
+      })
+    }
+
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => ({ width: 2, height: 2, close: vi.fn() }))
+    )
+
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:mock'),
+      revokeObjectURL: vi.fn(),
+    })
+
+    vi.spyOn(canvasStub._context, 'drawImage').mockImplementation((
+      _source,
+      _sx,
+      _sy,
+      targetWidth?: number,
+      targetHeight?: number
+    ) => {
+      canvasStub.width = typeof targetWidth === 'number' ? targetWidth : canvasStub.width
+      canvasStub.height = typeof targetHeight === 'number' ? targetHeight : canvasStub.height
+    })
+
+    vi.spyOn(canvasStub._context, 'getImageData').mockImplementation(() => {
+      const size = canvasStub.width * canvasStub.height * 4
+      return new ImageData(new Uint8ClampedArray(size), canvasStub.width, canvasStub.height)
+    })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('renders the dropzone and disabled controls initially', () => {
@@ -69,6 +118,7 @@ describe('index route UI', () => {
       expect(screen.getByTestId('preview-image')).toBeInTheDocument(),
     )
     expect(screen.getByTestId('preview-label')).toHaveTextContent('Processed')
+    expect(screen.getByTestId('file-info')).toHaveTextContent('sample.png')
   })
 
   it('updates the palette label when the colors input changes', async () => {
@@ -107,5 +157,37 @@ describe('index route UI', () => {
     const processedToggle = screen.getByTestId('toggle-processed')
     fireEvent.click(processedToggle)
     expect(screen.getByTestId('preview-label')).toHaveTextContent('Processed')
+  })
+
+  it('updates the output size label when scale changes', async () => {
+    renderApp()
+
+    const file = new File([new Uint8Array([1])], 'sample.png', {
+      type: 'image/png',
+    })
+    const input = screen.getByTestId('image-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [file] } })
+
+    const scaleInput = await screen.findByTestId('scale-input')
+    fireEvent.change(scaleInput, { target: { value: '2' } })
+    fireEvent.blur(scaleInput)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('output-size')).toHaveTextContent('Output: 4 x 4px')
+    })
+  })
+
+  it('enables the download button after processing completes', async () => {
+    renderApp()
+
+    const file = new File([new Uint8Array([1])], 'sample.png', {
+      type: 'image/png',
+    })
+    const input = screen.getByTestId('image-input') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [file] } })
+
+    await waitFor(() =>
+      expect(screen.getByTestId('download-button')).not.toBeDisabled(),
+    )
   })
 })
