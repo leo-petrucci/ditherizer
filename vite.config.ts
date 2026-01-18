@@ -7,32 +7,29 @@ import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
 import { nitro } from 'nitro/vite'
 
-const config = defineConfig({
-  plugins: [
-    devtools(),
-    nitro(),
-    // this is the plugin that enables path aliases
-    viteTsConfigPaths({
-      projects: ['./tsconfig.json'],
-    }),
-    tailwindcss(),
-    tanstackStart(),
-    viteReact(),
-  ],
-  test: {
-    environment: 'jsdom',
-    deps: {
-      optimizer: {
-        web: {
-          include: ['react', 'react-dom', 'react/jsx-runtime'],
-        },
-        ssr: {
-          enabled: true,
-          include: ['react/jsx-runtime'],
-        },
+const config = defineConfig(({ mode }) => {
+  const isTest = mode === 'test' || process.env.VITEST === 'true'
+
+  return {
+    plugins: [
+      ...(isTest ? [] : [devtools(), nitro()]),
+      // this is the plugin that enables path aliases
+      viteTsConfigPaths({
+        projects: ['./tsconfig.json'],
+      }),
+      tailwindcss(),
+      ...(isTest ? [] : [tanstackStart()]),
+      viteReact(),
+    ],
+    test: {
+      environment: 'jsdom',
+      setupFiles: ['./vitest.setup.ts'],
+      globals: true,
+      deps: {
+        inline: ['react', 'react-dom', 'react/jsx-runtime'],
       },
     },
-  },
+  }
 })
 
 export default config

@@ -27,20 +27,19 @@ describe('index route UI', () => {
   const renderApp = () => render(<DitherizerApp />)
 
   beforeEach(() => {
-    const originalCreateElement = document.createElement.bind(document)
+    const originalCreateElement = Document.prototype.createElement
     const canvasStub = createCanvasStub()
 
-    vi.spyOn(document, 'createElement').mockImplementation((tagName) => {
+    vi.spyOn(document, 'createElement').mockImplementation(function (
+      this: Document,
+      tagName,
+      options,
+    ) {
       if (tagName === 'canvas') {
         return canvasStub as unknown as HTMLCanvasElement
       }
-      return originalCreateElement(tagName)
+      return originalCreateElement.call(this, tagName, options)
     })
-
-    vi.stubGlobal(
-      'createImageBitmap',
-      vi.fn(async () => ({ width: 2, height: 2, close: vi.fn() }))
-    )
   })
 
   it('renders the dropzone and disabled controls initially', () => {
@@ -55,7 +54,9 @@ describe('index route UI', () => {
   it('enables controls after an image is selected', async () => {
     renderApp()
 
-    const file = new File([new Uint8Array([1])], 'sample.png', { type: 'image/png' })
+    const file = new File([new Uint8Array([1])], 'sample.png', {
+      type: 'image/png',
+    })
     const input = screen.getByTestId('image-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
@@ -64,14 +65,18 @@ describe('index route UI', () => {
       expect(screen.getByTestId('scale-slider')).not.toBeDisabled()
     })
 
-    await waitFor(() => expect(screen.getByTestId('preview-image')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByTestId('preview-image')).toBeInTheDocument(),
+    )
     expect(screen.getByTestId('preview-label')).toHaveTextContent('Processed')
   })
 
   it('updates the palette label when the colors input changes', async () => {
     renderApp()
 
-    const file = new File([new Uint8Array([1])], 'sample.png', { type: 'image/png' })
+    const file = new File([new Uint8Array([1])], 'sample.png', {
+      type: 'image/png',
+    })
     const input = screen.getByTestId('image-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
@@ -80,14 +85,18 @@ describe('index route UI', () => {
     fireEvent.blur(colorsInput)
 
     await waitFor(() => {
-      expect(screen.getByTestId('palette-label')).toHaveTextContent('Palette: 32 colors')
+      expect(screen.getByTestId('palette-label')).toHaveTextContent(
+        'Palette: 32 colors',
+      )
     })
   })
 
   it('toggles the preview label between original and processed', async () => {
     renderApp()
 
-    const file = new File([new Uint8Array([1])], 'sample.png', { type: 'image/png' })
+    const file = new File([new Uint8Array([1])], 'sample.png', {
+      type: 'image/png',
+    })
     const input = screen.getByTestId('image-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
