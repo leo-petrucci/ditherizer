@@ -168,7 +168,7 @@ describe('DitherizerApp UI', () => {
     const input = screen.getByTestId('image-input') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
-    const scaleInput = await screen.findByTestId('scale-input')
+    const scaleInput = (await screen.findAllByTestId('scale-input'))[0]
     fireEvent.change(scaleInput, { target: { value: '0.5' } })
     fireEvent.blur(scaleInput)
 

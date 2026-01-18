@@ -9,7 +9,7 @@ import { useDitherProcessor } from '@/lib/hooks/useDitherProcessor'
 const MAX_COLORS = 256
 const MIN_COLORS = 2
 const DEFAULT_COLORS = 256
-const MIN_SCALE = 0.1
+const MIN_SCALE = 0.01
 const MAX_SCALE = 1
 
 /**
@@ -238,6 +238,9 @@ export function DitherizerApp() {
             <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-[#f7c07b]/20 backdrop-blur">
               <ControlsPanel
                 maxColors={maxColors}
+                minColors={MIN_COLORS}
+                maxScale={MAX_SCALE}
+                minScale={MIN_SCALE}
                 scale={scale}
                 showProcessed={showProcessed}
                 ditherMode={ditherMode}

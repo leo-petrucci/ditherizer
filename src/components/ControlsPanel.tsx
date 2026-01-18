@@ -1,15 +1,20 @@
 import { Loader2 } from 'lucide-react'
 
+import type { ColorReductionMode, DitherMode } from '@/lib/image/ditherClient'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
 
 type ControlsPanelProps = {
   maxColors: number
+  minColors: number
+  maxScale: number
+  minScale: number
   scale: number
   showProcessed: boolean
-  ditherMode: 'ordered' | 'diffusion' | 'none'
-  colorReduction: 'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
+  ditherMode: DitherMode
+  colorReduction: ColorReductionMode
   disabled: boolean
   isProcessing: boolean
   onMaxColorsChange: (value: number) => void
@@ -17,10 +22,8 @@ type ControlsPanelProps = {
   onScaleChange: (value: number) => void
   onScaleCommit: (value: number) => void
   onTogglePreview: (showProcessed: boolean) => void
-  onDitherModeChange: (mode: 'ordered' | 'diffusion' | 'none') => void
-  onColorReductionChange: (
-    mode: 'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
-  ) => void
+  onDitherModeChange: (mode: DitherMode) => void
+  onColorReductionChange: (mode: ColorReductionMode) => void
   onDownload: () => void
 }
 
@@ -29,6 +32,9 @@ type ControlsPanelProps = {
  */
 export const ControlsPanel = ({
   maxColors,
+  minColors,
+  maxScale,
+  minScale,
   scale,
   showProcessed,
   ditherMode,
@@ -64,8 +70,8 @@ export const ControlsPanel = ({
           </span>
         </div>
         <Slider
-          min={2}
-          max={256}
+          min={minColors}
+          max={maxColors}
           step={1}
           value={[maxColors]}
           disabled={disabled}
@@ -75,8 +81,8 @@ export const ControlsPanel = ({
         />
         <Input
           type="number"
-          min={2}
-          max={256}
+          min={minColors}
+          max={maxColors}
           value={maxColors}
           data-testid="colors-input"
           disabled={disabled}
@@ -93,8 +99,8 @@ export const ControlsPanel = ({
           </span>
         </div>
         <Slider
-          min={0.1}
-          max={1}
+          min={minScale}
+          max={maxScale}
           step={0.05}
           value={[scale]}
           disabled={disabled}
@@ -104,8 +110,8 @@ export const ControlsPanel = ({
         />
         <Input
           type="number"
-          min={0.1}
-          max={1}
+          min={minScale}
+          max={maxScale}
           step={0.05}
           value={scale}
           data-testid="scale-input"
@@ -118,13 +124,15 @@ export const ControlsPanel = ({
       <div className="space-y-3">
         <p className="text-sm font-medium text-slate-700">Color reduction</p>
         <div className="flex flex-wrap gap-2">
-          {[
-            { label: 'Perceptual', value: 'perceptual' },
-            { label: 'Perceptual+', value: 'perceptual-plus' },
-            { label: 'Selective', value: 'selective' },
-            { label: 'Adaptive', value: 'adaptive' },
-            { label: 'Restrictive', value: 'restrictive' },
-          ].map((mode) => {
+          {(
+            [
+              { label: 'Perceptual', value: 'perceptual' },
+              { label: 'Perceptual+', value: 'perceptual-plus' },
+              { label: 'Selective', value: 'selective' },
+              { label: 'Adaptive', value: 'adaptive' },
+              { label: 'Restrictive', value: 'restrictive' },
+            ] as const satisfies ReadonlyArray<{ label: string; value: ColorReductionMode }>
+          ).map((mode) => {
             const active = colorReduction === mode.value
             return (
               <button
@@ -146,11 +154,13 @@ export const ControlsPanel = ({
       <div className="space-y-3">
         <p className="text-sm font-medium text-slate-700">Dither mode</p>
         <div className="flex flex-wrap gap-2">
-          {[
-            { label: 'Pattern (Ordered)', value: 'ordered' },
-            { label: 'Diffusion', value: 'diffusion' },
-            { label: 'None', value: 'none' },
-          ].map((mode) => {
+          {(
+            [
+              { label: 'Pattern (Ordered)', value: 'ordered' },
+              { label: 'Diffusion', value: 'diffusion' },
+              { label: 'None', value: 'none' },
+            ] as const satisfies ReadonlyArray<{ label: string; value: DitherMode }>
+          ).map((mode) => {
             const active = ditherMode === mode.value
             return (
               <button
