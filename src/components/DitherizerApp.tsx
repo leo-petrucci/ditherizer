@@ -9,8 +9,8 @@ import { useDitherProcessor } from '@/lib/hooks/useDitherProcessor'
 const MAX_COLORS = 256
 const MIN_COLORS = 2
 const DEFAULT_COLORS = 256
-const MIN_SCALE = 0.25
-const MAX_SCALE = 4
+const MIN_SCALE = 0.1
+const MAX_SCALE = 1
 
 /**
  * Main Ditherizer Studio page.
@@ -96,7 +96,6 @@ export function DitherizerApp() {
     if (last && last.colors === colors && last.scale === nextScale) {
       return
     }
-    console.log('triggerProcessing', { colors, nextScale })
     lastProcessedRef.current = { colors, scale: nextScale }
     process({ maxColors: colors, scale: nextScale })
   }
@@ -138,7 +137,6 @@ export function DitherizerApp() {
     const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, value))
     scaleRef.current = clamped
     setScale(clamped)
-    console.log('handleScaleChange', clamped)
   }
 
   /**
@@ -158,7 +156,6 @@ export function DitherizerApp() {
     const clamped = Math.min(MAX_SCALE, Math.max(MIN_SCALE, value))
     scaleRef.current = clamped
     setScale(clamped)
-    console.log('handleScaleCommit', clamped)
     triggerProcessing(maxColorsRef.current, clamped)
   }
 

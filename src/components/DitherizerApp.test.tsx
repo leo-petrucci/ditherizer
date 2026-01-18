@@ -169,11 +169,11 @@ describe('DitherizerApp UI', () => {
     fireEvent.change(input, { target: { files: [file] } })
 
     const scaleInput = await screen.findByTestId('scale-input')
-    fireEvent.change(scaleInput, { target: { value: '2' } })
+    fireEvent.change(scaleInput, { target: { value: '0.5' } })
     fireEvent.blur(scaleInput)
 
     await waitFor(() => {
-      expect(screen.getByTestId('output-size')).toHaveTextContent('Output: 4 x 4px')
+      expect(screen.getByTestId('output-size')).toHaveTextContent('Output: 1 x 1px')
     })
   })
 

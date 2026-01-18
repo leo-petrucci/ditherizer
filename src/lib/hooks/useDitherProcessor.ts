@@ -130,7 +130,6 @@ export const useDitherProcessor = (sourceFile: File | null): ProcessResult => {
       setIsProcessing(true)
       setError(null)
 
-      console.log('process', options)
 
       try {
         let imageData = sourceImageDataRef.current
@@ -150,7 +149,6 @@ export const useDitherProcessor = (sourceFile: File | null): ProcessResult => {
           setSourceSize({ width, height })
         }
 
-        console.log('Applying dither...', options)
 
         const result = await applyPaletteDitherClient(imageData, {
           maxColors: options.maxColors,
@@ -158,11 +156,9 @@ export const useDitherProcessor = (sourceFile: File | null): ProcessResult => {
           dither: true,
         })
 
-        console.log('Dither result:', result)
 
         revokeUrl(outputUrlRef.current)
         const nextUrl = URL.createObjectURL(result.blob)
-        console.log('Created output URL:', nextUrl)
         outputUrlRef.current = nextUrl
         setOutputUrl(nextUrl)
         setOutputSize({ width: result.width, height: result.height })

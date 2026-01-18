@@ -40,7 +40,7 @@ export const PreviewPanel = ({
       </div>
 
       <div
-        className="preview-grid mt-6 flex min-h-[380px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50"
+        className="preview-grid mt-6 flex min-h-[380px] items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
         data-testid="preview-container"
       >
         {previewUrl ? (
@@ -48,7 +48,8 @@ export const PreviewPanel = ({
             src={previewUrl}
             alt="Dithered preview"
             data-testid="preview-image"
-            className="w-auto rounded-xl border border-white shadow-lg"
+            className="h-full w-full rounded-xl border border-white shadow-lg object-contain"
+            style={{ imageRendering: 'pixelated' }}
           />
         ) : (
           <div className="flex flex-col items-center gap-3 text-center text-slate-400">

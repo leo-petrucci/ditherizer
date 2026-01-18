@@ -79,12 +79,12 @@ export const ControlsPanel = ({
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-slate-700">Scale output</p>
           <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow">
-            {scale.toFixed(2)}x
+            {(scale * 100).toFixed(0)}%
           </span>
         </div>
         <Slider
-          min={0.25}
-          max={4}
+          min={0.1}
+          max={1}
           step={0.05}
           value={[scale]}
           disabled={disabled}
@@ -94,8 +94,8 @@ export const ControlsPanel = ({
         />
         <Input
           type="number"
-          min={0.25}
-          max={4}
+          min={0.1}
+          max={1}
           step={0.05}
           value={scale}
           data-testid="scale-input"
