@@ -12,7 +12,15 @@ const config = defineConfig(({ mode }) => {
 
   return {
     plugins: [
-      ...(isTest ? [] : [devtools(), nitro()]),
+      ...(isTest
+        ? []
+        : [
+            devtools(),
+            nitro({
+              awsLambda: { streaming: true },
+              preset: 'aws-lambda',
+            }),
+          ]),
       // this is the plugin that enables path aliases
       viteTsConfigPaths({
         projects: ['./tsconfig.json'],

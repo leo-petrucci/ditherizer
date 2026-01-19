@@ -232,6 +232,26 @@ export function DitherizerApp() {
               Upload an image, tune the palette, and resize for a crisp pixel-art feel.
               The preview updates when you finish adjusting each control.
             </p>
+            <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+              <span>Inspired by</span>
+              <a
+                href="https://x.com/perezangelito/status/1831723495417332178"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-slate-700 underline-offset-4 hover:underline"
+              >
+                @perezangelito
+              </a>
+              <span>·</span>
+              <a
+                href="https://x.com/lxopetrucci"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-slate-700 underline-offset-4 hover:underline"
+              >
+                @lxopetrucci
+              </a>
+            </div>
           </header>
 
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
@@ -279,6 +299,12 @@ export function DitherizerApp() {
               maxColors={maxColors}
             />
           </div>
+
+          <footer className="mt-16 rounded-3xl border border-white/70 bg-white/60 px-6 py-5 text-sm text-slate-600 shadow-sm">
+            Ditherizer Studio is a lightweight, browser-based palette reduction tool inspired by
+            Photoshop's Save for Web workflow. Upload images, reduce color palettes, and preview
+            ordered dithering to craft crisp pixel-art exports without leaving your browser.
+          </footer>
         </div>
       </div>
     </div>

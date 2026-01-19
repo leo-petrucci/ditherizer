@@ -3,14 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 3000",
     "build": "vite build",
-    "preview": "vite preview",
-    "test": "vitest run",
+    "check": "prettier --write . && eslint --fix",
+    "dev": "vite dev --port 3000",
     "dither": "tsx scripts/dither.ts",
-    "lint": "eslint",
     "format": "prettier",
-    "check": "prettier --write . && eslint --fix"
+    "lint": "eslint",
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@radix-ui/react-slider": "^1.3.6",
@@ -30,6 +30,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "sharp": "^0.34.5",
+    "sst": "3.17.25",
     "tailwind-merge": "^3.0.2",
     "tailwindcss": "^4.0.6",
     "tw-animate-css": "^1.3.6",
@@ -41,6 +42,7 @@
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
+    "@types/aws-lambda": "8.10.159",
     "@types/node": "^22.10.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
