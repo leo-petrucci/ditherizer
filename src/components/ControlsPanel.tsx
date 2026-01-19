@@ -12,6 +12,7 @@ type ControlsPanelProps = {
   maxScale: number
   minScale: number
   scale: number
+  colors: number
   showProcessed: boolean
   ditherMode: DitherMode
   colorReduction: ColorReductionMode
@@ -36,6 +37,7 @@ export const ControlsPanel = ({
   maxScale,
   minScale,
   scale,
+  colors,
   showProcessed,
   ditherMode,
   colorReduction,
@@ -73,7 +75,7 @@ export const ControlsPanel = ({
           min={minColors}
           max={maxColors}
           step={1}
-          value={[maxColors]}
+          value={[colors]}
           disabled={disabled}
           data-testid="colors-slider"
           onValueChange={(value) => onMaxColorsChange(value[0] ?? maxColors)}
@@ -83,11 +85,15 @@ export const ControlsPanel = ({
           type="number"
           min={minColors}
           max={maxColors}
-          value={maxColors}
+          value={colors}
           data-testid="colors-input"
           disabled={disabled}
-          onChange={(event) => onMaxColorsChange(Number(event.currentTarget.value))}
-          onBlur={(event) => onMaxColorsCommit(Number(event.currentTarget.value))}
+          onChange={(event) =>
+            onMaxColorsChange(Number(event.currentTarget.value))
+          }
+          onBlur={(event) =>
+            onMaxColorsCommit(Number(event.currentTarget.value))
+          }
         />
       </div>
 
@@ -101,7 +107,7 @@ export const ControlsPanel = ({
         <Slider
           min={minScale}
           max={maxScale}
-          step={0.05}
+          step={0.01}
           value={[scale]}
           disabled={disabled}
           data-testid="scale-slider"
@@ -112,7 +118,7 @@ export const ControlsPanel = ({
           type="number"
           min={minScale}
           max={maxScale}
-          step={0.05}
+          step={0.01}
           value={scale}
           data-testid="scale-input"
           disabled={disabled}
@@ -131,7 +137,10 @@ export const ControlsPanel = ({
               { label: 'Selective', value: 'selective' },
               { label: 'Adaptive', value: 'adaptive' },
               { label: 'Restrictive', value: 'restrictive' },
-            ] as const satisfies ReadonlyArray<{ label: string; value: ColorReductionMode }>
+            ] as const satisfies ReadonlyArray<{
+              label: string
+              value: ColorReductionMode
+            }>
           ).map((mode) => {
             const active = colorReduction === mode.value
             return (
@@ -141,7 +150,9 @@ export const ControlsPanel = ({
                 data-testid={`reduction-${mode.value}`}
                 onClick={() => onColorReductionChange(mode.value)}
                 className={`rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
-                  active ? 'bg-slate-900 text-white shadow' : 'bg-slate-100 text-slate-500'
+                  active
+                    ? 'bg-slate-900 text-white shadow'
+                    : 'bg-slate-100 text-slate-500'
                 }`}
               >
                 {mode.label}
@@ -159,7 +170,10 @@ export const ControlsPanel = ({
               { label: 'Pattern (Ordered)', value: 'ordered' },
               { label: 'Diffusion', value: 'diffusion' },
               { label: 'None', value: 'none' },
-            ] as const satisfies ReadonlyArray<{ label: string; value: DitherMode }>
+            ] as const satisfies ReadonlyArray<{
+              label: string
+              value: DitherMode
+            }>
           ).map((mode) => {
             const active = ditherMode === mode.value
             return (
@@ -169,7 +183,9 @@ export const ControlsPanel = ({
                 data-testid={`dither-${mode.value}`}
                 onClick={() => onDitherModeChange(mode.value)}
                 className={`rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] transition ${
-                  active ? 'bg-slate-900 text-white shadow' : 'bg-slate-100 text-slate-500'
+                  active
+                    ? 'bg-slate-900 text-white shadow'
+                    : 'bg-slate-100 text-slate-500'
                 }`}
               >
                 {mode.label}
@@ -188,7 +204,9 @@ export const ControlsPanel = ({
               <button
                 key={label}
                 type="button"
-                data-testid={label === 'Processed' ? 'toggle-processed' : 'toggle-original'}
+                data-testid={
+                  label === 'Processed' ? 'toggle-processed' : 'toggle-original'
+                }
                 onClick={() => onTogglePreview(label === 'Processed')}
                 className={`flex-1 rounded-full px-3 py-2 text-xs font-semibold transition ${
                   active ? 'bg-white text-slate-900 shadow' : 'text-slate-500'

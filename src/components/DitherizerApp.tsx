@@ -257,11 +257,12 @@ export function DitherizerApp() {
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
             <div className="rounded-3xl border border-white/60 bg-white/70 p-6 shadow-lg shadow-[#f7c07b]/20 backdrop-blur">
               <ControlsPanel
-                maxColors={maxColors}
+                maxColors={MAX_COLORS}
                 minColors={MIN_COLORS}
                 maxScale={MAX_SCALE}
                 minScale={MIN_SCALE}
                 scale={scale}
+                colors={maxColors}
                 showProcessed={showProcessed}
                 ditherMode={ditherMode}
                 colorReduction={colorReduction}
