@@ -99,30 +99,27 @@ export const useDitherProcessor = (sourceFile: File | null): ProcessResult => {
   /**
    * Decode the source image into ImageData, guarding against stale results.
    */
-  const loadImageData = useCallback(
-    async (file: File, token: number) => {
-      const bitmap = await createImageBitmap(file)
-      const canvas = document.createElement('canvas')
-      canvas.width = bitmap.width
-      canvas.height = bitmap.height
+  const loadImageData = useCallback(async (file: File, token: number) => {
+    const bitmap = await createImageBitmap(file)
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
 
-      const context = canvas.getContext('2d')
-      if (!context) {
-        throw new Error('Canvas context unavailable')
-      }
+    const context = canvas.getContext('2d')
+    if (!context) {
+      throw new Error('Canvas context unavailable')
+    }
 
-      context.drawImage(bitmap, 0, 0)
-      const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-      bitmap.close()
+    context.drawImage(bitmap, 0, 0)
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
+    bitmap.close()
 
-      if (loadTokenRef.current !== token) {
-        return null
-      }
+    if (loadTokenRef.current !== token) {
+      return null
+    }
 
-      return { imageData, width: canvas.width, height: canvas.height }
-    },
-    []
-  )
+    return { imageData, width: canvas.width, height: canvas.height }
+  }, [])
 
   /**
    * Run the palette + dithering pipeline and update output state.
@@ -152,8 +149,8 @@ export const useDitherProcessor = (sourceFile: File | null): ProcessResult => {
           width = loaded.width
           height = loaded.height
           sourceImageDataRef.current = imageData
-        setSourceSize({ width, height })
-      }
+          setSourceSize({ width, height })
+        }
 
         const result = await applyPaletteDitherClient(imageData, {
           maxColors: options.maxColors,
@@ -162,23 +159,30 @@ export const useDitherProcessor = (sourceFile: File | null): ProcessResult => {
           colorReduction: options.colorReduction,
         })
 
-
-
         revokeUrl(outputUrlRef.current)
         const nextUrl = URL.createObjectURL(result.blob)
         outputUrlRef.current = nextUrl
         setOutputUrl(nextUrl)
         setOutputSize({ width: result.width, height: result.height })
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to process image.'
+        const message =
+          err instanceof Error ? err.message : 'Failed to process image.'
         setError(message)
       } finally {
         processingLockRef.current = false
         setIsProcessing(false)
       }
     },
-    [loadImageData, sourceFile, sourceSize]
+    [loadImageData, sourceFile, sourceSize],
   )
 
-  return { outputUrl, outputSize, sourceSize, isProcessing, error, process, reset }
+  return {
+    outputUrl,
+    outputSize,
+    sourceSize,
+    isProcessing,
+    error,
+    process,
+    reset,
+  }
 }

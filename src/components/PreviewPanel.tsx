@@ -7,6 +7,7 @@ type PreviewPanelProps = {
   previewLabel: string
   outputSize: Size | null
   maxColors: number
+  showSlowProcessing: boolean
 }
 
 /**
@@ -17,12 +18,15 @@ export const PreviewPanel = ({
   previewLabel,
   outputSize,
   maxColors,
+  showSlowProcessing,
 }: PreviewPanelProps) => {
   return (
     <section className="rounded-3xl border border-white/70 bg-white/70 p-6 shadow-lg shadow-[#7bd4c7]/20 backdrop-blur">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Preview</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+            Preview
+          </p>
           <h2 className="font-display text-2xl" data-testid="preview-label">
             {previewLabel}
           </h2>
@@ -40,7 +44,7 @@ export const PreviewPanel = ({
       </div>
 
       <div
-        className="preview-grid mt-6 flex min-h-[380px] items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+        className="preview-grid relative mt-6 flex min-h-[380px] items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
         data-testid="preview-container"
       >
         {previewUrl ? (
@@ -57,6 +61,14 @@ export const PreviewPanel = ({
               <ImageIcon className="h-7 w-7" />
             </div>
             <p className="text-sm">Upload an image to begin previewing.</p>
+          </div>
+        )}
+        {showSlowProcessing && (
+          <div className="absolute inset-3 flex items-end">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/95 px-4 py-3 text-xs text-amber-800 shadow-lg">
+              Processing large images can take longer, it will eventually
+              complete. Please consider using smaller images.
+            </div>
           </div>
         )}
       </div>

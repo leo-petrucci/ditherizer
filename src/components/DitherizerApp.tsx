@@ -1,5 +1,5 @@
 import { Sparkles } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { ControlsPanel } from '@/components/ControlsPanel'
 import { PreviewPanel } from '@/components/PreviewPanel'
@@ -32,7 +32,10 @@ export function DitherizerApp() {
    * Toggle between processed and original preview.
    */
   const [showProcessed, setShowProcessed] = useState(true)
-  const [ditherMode, setDitherMode] = useState<'ordered' | 'diffusion' | 'none'>('ordered')
+  const [showSlowProcessing, setShowSlowProcessing] = useState(false)
+  const [ditherMode, setDitherMode] = useState<
+    'ordered' | 'diffusion' | 'none'
+  >('ordered')
   const [colorReduction, setColorReduction] = useState<
     'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
   >('perceptual')
@@ -50,7 +53,12 @@ export function DitherizerApp() {
     colors: number
     scale: number
     mode: 'ordered' | 'diffusion' | 'none'
-    colorReduction: 'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
+    colorReduction:
+      | 'perceptual'
+      | 'perceptual-plus'
+      | 'selective'
+      | 'adaptive'
+      | 'restrictive'
   } | null>(null)
 
   /**
@@ -65,6 +73,24 @@ export function DitherizerApp() {
     process,
     reset,
   } = useDitherProcessor(sourceFile)
+
+  /**
+   * Show a warning if processing runs long.
+   */
+  useEffect(() => {
+    if (!isProcessing) {
+      setShowSlowProcessing(false)
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setShowSlowProcessing(true)
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [isProcessing])
 
   /**
    * Choose which preview URL and label should be visible.
@@ -95,7 +121,12 @@ export function DitherizerApp() {
     colors: number,
     nextScale: number,
     mode: 'ordered' | 'diffusion' | 'none',
-    reduction: 'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
+    reduction:
+      | 'perceptual'
+      | 'perceptual-plus'
+      | 'selective'
+      | 'adaptive'
+      | 'restrictive',
   ) => {
     if (!sourceFile) {
       return
@@ -110,7 +141,12 @@ export function DitherizerApp() {
     ) {
       return
     }
-    lastProcessedRef.current = { colors, scale: nextScale, mode, colorReduction: reduction }
+    lastProcessedRef.current = {
+      colors,
+      scale: nextScale,
+      mode,
+      colorReduction: reduction,
+    }
     process({
       maxColors: colors,
       scale: nextScale,
@@ -137,14 +173,22 @@ export function DitherizerApp() {
       URL.revokeObjectURL(sourceUrl)
     }
     setSourceUrl(nextUrl)
-    triggerProcessing(maxColorsRef.current, scaleRef.current, ditherMode, colorReduction)
+    triggerProcessing(
+      maxColorsRef.current,
+      scaleRef.current,
+      ditherMode,
+      colorReduction,
+    )
   }
 
   /**
    * Update palette size while the slider is moving.
    */
   const handleMaxColorsChange = (value: number) => {
-    const clamped = Math.min(MAX_COLORS, Math.max(MIN_COLORS, Math.round(value)))
+    const clamped = Math.min(
+      MAX_COLORS,
+      Math.max(MIN_COLORS, Math.round(value)),
+    )
     maxColorsRef.current = clamped
     setMaxColors(clamped)
   }
@@ -162,7 +206,10 @@ export function DitherizerApp() {
    * Commit palette size and trigger processing after release/blur.
    */
   const handleMaxColorsCommit = (value: number) => {
-    const clamped = Math.min(MAX_COLORS, Math.max(MIN_COLORS, Math.round(value)))
+    const clamped = Math.min(
+      MAX_COLORS,
+      Math.max(MIN_COLORS, Math.round(value)),
+    )
     maxColorsRef.current = clamped
     setMaxColors(clamped)
     triggerProcessing(clamped, scaleRef.current, ditherMode, colorReduction)
@@ -183,14 +230,24 @@ export function DitherizerApp() {
    */
   const handleDitherModeChange = (mode: 'ordered' | 'diffusion' | 'none') => {
     setDitherMode(mode)
-    triggerProcessing(maxColorsRef.current, scaleRef.current, mode, colorReduction)
+    triggerProcessing(
+      maxColorsRef.current,
+      scaleRef.current,
+      mode,
+      colorReduction,
+    )
   }
 
   /**
    * Commit color reduction mode and trigger reprocessing.
    */
   const handleColorReductionChange = (
-    mode: 'perceptual' | 'perceptual-plus' | 'selective' | 'adaptive' | 'restrictive'
+    mode:
+      | 'perceptual'
+      | 'perceptual-plus'
+      | 'selective'
+      | 'adaptive'
+      | 'restrictive',
   ) => {
     setColorReduction(mode)
     triggerProcessing(maxColorsRef.current, scaleRef.current, ditherMode, mode)
@@ -211,7 +268,10 @@ export function DitherizerApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f1e7] text-slate-900" data-testid="ditherizer-root">
+    <div
+      className="min-h-screen bg-[#f6f1e7] text-slate-900"
+      data-testid="ditherizer-root"
+    >
       <div className="relative overflow-hidden">
         <div className="absolute -top-40 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-[#f7c07b]/40 blur-3xl" />
         <div className="absolute -right-20 top-24 h-64 w-64 rounded-full bg-[#7bd4c7]/35 blur-3xl" />
@@ -229,8 +289,9 @@ export function DitherizerApp() {
               Save-for-web style palette reduction with live preview.
             </h1>
             <p className="max-w-2xl text-base text-slate-600">
-              Upload an image, tune the palette, and resize for a crisp pixel-art feel.
-              The preview updates when you finish adjusting each control.
+              Upload an image, tune the palette, and resize for a crisp
+              pixel-art feel. The preview updates when you finish adjusting each
+              control.
             </p>
             <div className="flex flex-wrap gap-2 text-xs text-slate-500">
               <span>Inspired by</span>
@@ -298,13 +359,15 @@ export function DitherizerApp() {
               previewLabel={previewLabel}
               outputSize={displayOutputSize}
               maxColors={maxColors}
+              showSlowProcessing={showSlowProcessing}
             />
           </div>
 
           <footer className="mt-16 rounded-3xl border border-white/70 bg-white/60 px-6 py-5 text-sm text-slate-600 shadow-sm">
-            Ditherizer Studio is a lightweight, browser-based palette reduction tool inspired by
-            Photoshop's Save for Web workflow. Upload images, reduce color palettes, and preview
-            ordered dithering to craft crisp pixel-art exports without leaving your browser.
+            Ditherizer Studio is a lightweight, browser-based palette reduction
+            tool inspired by Photoshop's Save for Web workflow. Upload images,
+            reduce color palettes, and preview ordered dithering to craft crisp
+            pixel-art exports without leaving your browser.
           </footer>
         </div>
       </div>

@@ -1,5 +1,9 @@
 import { applyPaletteSync, buildPaletteSync, utils } from 'image-q'
-import type { ColorDistanceFormula, ImageQuantization, PaletteQuantization } from 'image-q'
+import type {
+  ColorDistanceFormula,
+  ImageQuantization,
+  PaletteQuantization,
+} from 'image-q'
 
 export type DitherMode = 'ordered' | 'diffusion' | 'none'
 export type ColorReductionMode =
@@ -42,7 +46,7 @@ const clamp8 = (value: number) => Math.max(0, Math.min(255, Math.round(value)))
 const orderedDither = (
   pixels: Uint8ClampedArray,
   width: number,
-  height: number
+  height: number,
 ) => {
   const thresholdScale = 16
   const thresholdBias = 24
@@ -51,7 +55,8 @@ const orderedDither = (
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const index = (y * width + x) * 4
-      const threshold = (BAYER_4X4[y % 4][x % 4] / thresholdScale - 0.5) * thresholdBias
+      const threshold =
+        (BAYER_4X4[y % 4][x % 4] / thresholdScale - 0.5) * thresholdBias
 
       output[index] = clamp8(pixels[index] + threshold)
       output[index + 1] = clamp8(pixels[index + 1] + threshold)
@@ -138,12 +143,49 @@ const canvasToBlob = (canvas: HTMLCanvasElement) =>
     }, 'image/png')
   })
 
-/**
- * Dither image data in the browser using image-q and return a PNG Blob.
- */
-export const applyPaletteDitherClient = async (
+const runDitherWorker = (imageData: ImageData, options: DitherClientOptions) =>
+  new Promise<DitherClientResult>((resolve, reject) => {
+    const worker = new Worker(new URL('./ditherWorker.ts', import.meta.url), {
+      type: 'module',
+    })
+
+    const buffer = imageData.data.buffer.slice(0)
+    worker.onmessage = (event) => {
+      worker.terminate()
+      const data = event.data as {
+        blob?: Blob
+        width?: number
+        height?: number
+        error?: string
+      }
+      if (data.error || !data.blob || !data.width || !data.height) {
+        reject(new Error(data.error ?? 'Failed to process image'))
+        return
+      }
+      resolve({ blob: data.blob, width: data.width, height: data.height })
+    }
+
+    worker.onerror = () => {
+      worker.terminate()
+      reject(new Error('Failed to process image'))
+    }
+
+    worker.postMessage(
+      {
+        imageData: {
+          data: buffer,
+          width: imageData.width,
+          height: imageData.height,
+        },
+        options,
+      },
+      [buffer],
+    )
+  })
+
+const applyPaletteDitherLocal = async (
   imageData: ImageData,
-  options: DitherClientOptions
+  options: DitherClientOptions,
 ): Promise<DitherClientResult> => {
   const scale = clamp(options.scale ?? 1, 0.1, 1)
   const maxColors = clamp(Math.round(options.maxColors), 2, 256)
@@ -152,13 +194,25 @@ export const applyPaletteDitherClient = async (
 
   const reductionConfig = resolveColorReduction(colorReduction)
   const colorDistanceFormula =
-    options.colorDistanceFormula ?? reductionConfig.colorDistanceFormula ?? DEFAULT_DISTANCE
+    options.colorDistanceFormula ??
+    reductionConfig.colorDistanceFormula ??
+    DEFAULT_DISTANCE
 
-  const { imageData: resized, width, height } = resizeImageData(imageData, scale)
+  const {
+    imageData: resized,
+    width,
+    height,
+  } = resizeImageData(imageData, scale)
 
   const paletteSource =
-    ditherMode === 'ordered' ? orderedDither(resized.data, width, height) : resized.data
-  const pointContainer = utils.PointContainer.fromUint8Array(paletteSource, width, height)
+    ditherMode === 'ordered'
+      ? orderedDither(resized.data, width, height)
+      : resized.data
+  const pointContainer = utils.PointContainer.fromUint8Array(
+    paletteSource,
+    width,
+    height,
+  )
 
   const palette = buildPaletteSync([pointContainer], {
     colors: maxColors,
@@ -187,4 +241,25 @@ export const applyPaletteDitherClient = async (
   const blob = await canvasToBlob(outputCanvas)
 
   return { blob, width, height }
+}
+
+/**
+ * Dither image data in the browser using image-q and return a PNG Blob.
+ */
+export const applyPaletteDitherClient = async (
+  imageData: ImageData,
+  options: DitherClientOptions,
+): Promise<DitherClientResult> => {
+  const canUseWorker =
+    typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined'
+
+  if (!canUseWorker) {
+    return applyPaletteDitherLocal(imageData, options)
+  }
+
+  try {
+    return await runDitherWorker(imageData, options)
+  } catch {
+    return applyPaletteDitherLocal(imageData, options)
+  }
 }
